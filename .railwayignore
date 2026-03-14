@@ -7,7 +7,6 @@ __pycache__/
 voice_profile.json
 posts_*.json
 notes_ai_news/
-notes_sample/
 tests/
 .git/
 *.zip
