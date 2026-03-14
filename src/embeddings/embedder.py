@@ -34,9 +34,9 @@ MODELS = {
 }
 
 DEFAULT_MODEL   = "voyage-3-lite"   # rápido, gratuito generoso, suficiente para notas
-BATCH_SIZE      = 128               # máximo por request Voyage AI
-MAX_RETRIES     = 3
-BASE_DELAY      = 1.0
+BATCH_SIZE      = 8                 # pequeño para respetar rate limit 3 RPM plan gratuito
+MAX_RETRIES     = 5
+BASE_DELAY      = 22.0              # 3 RPM = 1 request cada 20s; 22s con margen
 CHARS_PER_TOKEN = 4
 
 
@@ -132,6 +132,9 @@ class Embedder:
             batch  = chunks[i * BATCH_SIZE:(i + 1) * BATCH_SIZE]
             if verbose:
                 print(f"   Batch {i+1}/{n_batches} ({len(batch)} chunks)…", end=" ", flush=True)
+            # Delay entre batches para respetar rate limit de Voyage AI (3 RPM plan free)
+            if i > 0 and not self.simulate:
+                time.sleep(21)
             vectors = self._embed_with_retry([c.content for c in batch])
             for chunk, vector in zip(batch, vectors):
                 results.append(EmbeddedChunk(chunk=chunk, embedding=vector, model=self.model))
