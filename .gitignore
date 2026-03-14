@@ -1,0 +1,10 @@
+*.db
+*.pyc
+__pycache__/
+.env
+.seen_articles.json
+voice_profile.json
+posts_*.json
+notes_ai_news/
+*.zip
+.DS_Store

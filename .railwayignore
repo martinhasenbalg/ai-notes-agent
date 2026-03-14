@@ -1,0 +1,13 @@
+# No subir al deploy
+*.db
+*.pyc
+__pycache__/
+.env
+.seen_articles.json
+voice_profile.json
+posts_*.json
+notes_ai_news/
+notes_sample/
+tests/
+.git/
+*.zip

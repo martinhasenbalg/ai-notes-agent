@@ -1,0 +1,29 @@
+Vector Databases Comparison
+
+Tomado de mi investigación para elegir la DB del proyecto.
+
+Pinecone
+- Managed, zero ops
+- Muy buena latencia a escala
+- Caro para volúmenes grandes
+- No open source
+
+Weaviate
+- Open source, self-hosteable
+- Tiene módulos de ML integrados (vectorización automática)
+- Buena DX
+- Más complejo de operar
+
+Qdrant
+- Open source, Rust (muy rápido)
+- API limpia y moderna
+- Filtrado combinado con vector search muy potente
+- Mi favorito para self-host
+
+pgvector
+- Extensión de Postgres
+- Perfecto si ya usas Postgres
+- Escala limitada vs soluciones dedicadas
+- Sin coste adicional
+
+Conclusión: pgvector para MVP (ya tenemos Postgres), Qdrant si escala.

@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Notes Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;
+  --bg2:#141414;
+  --bg3:#1c1c1c;
+  --border:#2a2a2a;
+  --border2:#383838;
+  --text:#e8e6e0;
+  --muted:#888780;
+  --hint:#555;
+  --accent:#d4f57a;
+  --accent2:#f57a4a;
+  --blue:#7ab8f5;
+  --serif:'DM Serif Display',serif;
+  --sans:'DM Sans',sans-serif;
+  --mono:'DM Mono',monospace;
+  --r:8px;
+  --r2:12px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+
+/* ── Layout ── */
+.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.main{min-height:100vh;overflow-y:auto}
+
+/* ── Sidebar ── */
+.logo{padding:28px 24px 20px;border-bottom:1px solid var(--border)}
+.logo-mark{font-family:var(--serif);font-size:20px;color:var(--accent);letter-spacing:-.5px;display:block;margin-bottom:2px}
+.logo-sub{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--hint);font-family:var(--mono)}
+.nav{padding:16px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;cursor:pointer;color:var(--muted);transition:all .15s;font-size:13px;font-weight:400;border-left:2px solid transparent;position:relative}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.active{color:var(--text);border-left-color:var(--accent);background:rgba(212,245,122,.04)}
+.nav-item .icon{font-size:14px;width:16px;text-align:center;flex-shrink:0}
+.status-bar{padding:16px 24px;border-top:1px solid var(--border)}
+.status-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--hint);margin-bottom:6px;font-family:var(--mono)}
+.status-item:last-child{margin-bottom:0}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:#4ade80}
+.dot.warn{background:#facc15}
+.dot.err{background:#f87171}
+
+/* ── Main content ── */
+.page{display:none;padding:48px 56px;max-width:900px;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.page-header{margin-bottom:36px}
+.page-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--hint);margin-bottom:10px}
+.page-title{font-family:var(--serif);font-size:36px;color:var(--text);line-height:1.1;margin-bottom:8px}
+.page-title em{color:var(--accent);font-style:italic}
+.page-desc{color:var(--muted);font-size:14px;max-width:520px;line-height:1.65}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:20px 24px;margin-bottom:16px}
+.card-label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--hint);margin-bottom:12px}
+
+/* ── Stat grid ── */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
+.stat-num{font-family:var(--serif);font-size:28px;color:var(--accent);line-height:1}
+.stat-label{font-size:11px;color:var(--hint);margin-top:4px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em}
+
+/* ── Form elements ── */
+.field{margin-bottom:20px}
+.field label{display:block;font-size:12px;font-family:var(--mono);color:var(--muted);margin-bottom:7px;letter-spacing:.05em}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;color:var(--text);font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--border2)}
+.field textarea{resize:vertical;min-height:90px;line-height:1.55}
+.field select option{background:var(--bg3)}
+.row-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field .hint{font-size:11px;color:var(--hint);margin-top:5px}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:var(--r);border:1px solid var(--border2);background:transparent;color:var(--text);font-size:13px;font-family:var(--sans);cursor:pointer;transition:all .15s;font-weight:400}
+.btn:hover{background:rgba(255,255,255,.06);border-color:#444}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#0d0d0d;font-weight:500}
+.btn-primary:hover{background:#c8ef6a;border-color:#c8ef6a}
+.btn-sm{padding:7px 14px;font-size:12px}
+.btn-icon{padding:8px;border-radius:6px}
+
+/* ── Search results ── */
+.result-item{border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:10px;transition:border-color .15s}
+.result-item:hover{border-color:var(--border2)}
+.result-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.result-title{font-weight:500;font-size:13px;color:var(--text)}
+.score-badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0}
+.score-high{background:rgba(212,245,122,.12);color:var(--accent)}
+.score-med {background:rgba(250,204,21,.1);color:#facc15}
+.score-low {background:rgba(255,255,255,.04);color:var(--hint)}
+.result-meta{display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.tag{display:inline-block;background:rgba(255,255,255,.05);color:var(--hint);font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--mono)}
+.result-preview{font-size:12px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── Post cards ── */
+.post-card{border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;margin-bottom:20px}
+.post-header{padding:14px 20px;background:var(--bg3);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.post-variant{font-family:var(--mono);font-size:10px;color:var(--hint);letter-spacing:.1em;text-transform:uppercase}
+.post-style{font-size:12px;font-weight:500;color:var(--text)}
+.post-wc{font-family:var(--mono);font-size:10px;color:var(--hint)}
+.post-body{padding:20px;position:relative}
+.post-text{font-size:13px;line-height:1.75;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.post-actions{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.copied-flash{color:var(--accent);font-size:11px;font-family:var(--mono);opacity:0;transition:opacity .3s}
+.copied-flash.show{opacity:1}
+
+/* ── Loading & states ── */
+.loading{display:flex;align-items:center;gap:10px;color:var(--hint);font-size:13px;padding:24px 0}
+.spinner{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty-state{text-align:center;padding:64px 0;color:var(--hint)}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:.4}
+.empty-text{font-size:13px;line-height:1.6}
+.alert{padding:12px 16px;border-radius:var(--r);font-size:13px;margin-bottom:16px}
+.alert-err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171}
+.alert-ok {background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);color:#4ade80}
+.alert-info{background:rgba(122,184,245,.08);border:1px solid rgba(122,184,245,.2);color:var(--blue)}
+.divider{border:none;border-top:1px solid var(--border);margin:28px 0}
+
+/* ── Toggle ── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0}
+.toggle-label{font-size:13px;color:var(--text)}
+.toggle-sub{font-size:11px;color:var(--hint)}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;cursor:pointer;transition:background .2s}
+.toggle input:checked + .toggle-track{background:var(--accent);border-color:var(--accent)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
+.toggle input:checked ~ .toggle-thumb{transform:translateX(16px)}
+
+/* ── Profile grid ── */
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── Index table ── */
+.note-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.note-row:last-child{border-bottom:none}
+.note-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--accent);opacity:.7}
+.note-title{font-size:13px;color:var(--text);flex:1}
+.note-date{font-family:var(--mono);font-size:10px;color:var(--hint)}
+.note-tags{display:flex;gap:4px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <span class="logo-mark">Notes Agent</span>
+    <span class="logo-sub">LinkedIn Generator</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" data-page="home"   onclick="nav('home')">
+      <span class="icon">⌂</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="index"   onclick="nav('index')">
+      <span class="icon">⊕</span> Indexar notas
+    </div>
+    <div class="nav-item" data-page="search"  onclick="nav('search')">
+      <span class="icon">◎</span> Buscar
+    </div>
+    <div class="nav-item" data-page="generate" onclick="nav('generate')">
+      <span class="icon">✦</span> Generar post
+    </div>
+    <div class="nav-item" data-page="history" onclick="nav('history')">
+      <span class="icon">◷</span> Historial
+    </div>
+    <div class="nav-item" data-page="news" onclick="nav('news')">
+      <span class="icon">◈</span> Noticias IA
+    </div>
+    <div class="nav-item" data-page="profile" onclick="nav('profile')">
+      <span class="icon">◈</span> Perfil de voz
+    </div>
+  </nav>
+  <div class="status-bar" id="status-bar">
+    <div class="status-item"><div class="dot warn" id="dot-voyage"></div><span id="lbl-voyage">Voyage AI…</span></div>
+    <div class="status-item"><div class="dot warn" id="dot-claude"></div><span id="lbl-claude">Claude…</span></div>
+    <div class="status-item"><div class="dot warn" id="dot-index"></div><span id="lbl-index">Índice…</span></div>
+  </div>
+</aside>
+
+<!-- ── Pages ── -->
+<main class="main">
+
+  <!-- HOME -->
+  <section class="page active" id="page-home">
+    <div class="page-header">
+      <div class="page-eyebrow">Panel principal</div>
+      <h1 class="page-title">Tu segundo <em>cerebro</em><br>publicado en LinkedIn</h1>
+      <p class="page-desc">Busca en tus notas de IA, recupera el contexto relevante y genera posts de alto impacto con tu propia voz.</p>
+    </div>
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card"><div class="stat-num" id="stat-notes">—</div><div class="stat-label">Notas indexadas</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-chunks">—</div><div class="stat-label">Chunks vectorizados</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-posts">—</div><div class="stat-label">Posts generados</div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Inicio rápido</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn" onclick="nav('index')">⊕ &nbsp;1. Indexar mis notas</button>
+        <button class="btn" onclick="nav('generate')">✦ &nbsp;2. Generar un post</button>
+        <button class="btn" onclick="nav('profile')">◈ &nbsp;3. Configurar mi voz</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- INDEX -->
+  <section class="page" id="page-index">
+    <div class="page-header">
+      <div class="page-eyebrow">Fase 1</div>
+      <h1 class="page-title">Indexar <em>notas</em></h1>
+      <p class="page-desc">Parsea, chunkea y vectoriza tus archivos .md y .txt para que sean buscables semánticamente.</p>
+    </div>
+    <div class="card">
+      <div class="card-label">Directorio de notas</div>
+      <div class="field">
+        <label>Ruta del directorio</label>
+        <input type="text" id="index-dir" value="notes_sample" placeholder="notes_sample o C:\ruta\a\tus\notas">
+        <div class="hint">Relativa al directorio del proyecto, o ruta absoluta de Windows</div>
+      </div>
+      <button class="btn btn-primary" onclick="runIndex()" id="btn-index">⊕ &nbsp;Indexar ahora</button>
+    </div>
+    <div id="index-result"></div>
+  </section>
+
+  <!-- SEARCH -->
+  <section class="page" id="page-search">
+    <div class="page-header">
+      <div class="page-eyebrow">Fase 2</div>
+      <h1 class="page-title">Búsqueda <em>semántica</em></h1>
+      <p class="page-desc">Encuentra los fragmentos más relevantes de tus notas usando lenguaje natural.</p>
+    </div>
+    <div class="card">
+      <div class="field" style="margin-bottom:12px">
+        <label>Query en lenguaje natural</label>
+        <input type="text" id="search-q" placeholder="¿cómo funciona el reranking en RAG?" onkeydown="if(event.key==='Enter')runSearch()">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-primary" onclick="runSearch()">◎ &nbsp;Buscar</button>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--hint)">
+          Top-K: <input type="number" id="search-k" value="5" min="1" max="20" style="width:52px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none">
+        </div>
+      </div>
+    </div>
+    <div id="search-result"></div>
+  </section>
+
+  <!-- GENERATE -->
+  <section class="page" id="page-generate">
+    <div class="page-header">
+      <div class="page-eyebrow">Fase 3</div>
+      <h1 class="page-title">Generar <em>post</em></h1>
+      <p class="page-desc">Claude recupera el contexto de tus notas y genera 3 variantes de post listas para LinkedIn.</p>
+    </div>
+    <div class="card">
+      <div class="field" style="margin-bottom:12px">
+        <label>Tema del post</label>
+        <input type="text" id="gen-q" placeholder="arquitecturas RAG para producción" onkeydown="if(event.key==='Enter')runGenerate()">
+      </div>
+      <div class="row-fields" style="margin-bottom:16px">
+        <div class="field" style="margin-bottom:0">
+          <label>Variantes</label>
+          <select id="gen-variants">
+            <option value="1">1 variante</option>
+            <option value="2">2 variantes</option>
+            <option value="3" selected>3 variantes</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Chunks de contexto</label>
+          <select id="gen-topk">
+            <option value="3">3 fragmentos</option>
+            <option value="4" selected>4 fragmentos</option>
+            <option value="6">6 fragmentos</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="runGenerate()" id="btn-gen">✦ &nbsp;Generar posts</button>
+    </div>
+    <div id="gen-result"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="page" id="page-history">
+    <div class="page-header">
+      <div class="page-eyebrow">Historial</div>
+      <h1 class="page-title">Posts <em>guardados</em></h1>
+      <p class="page-desc">Todos los posts generados, organizados por sesión.</p>
+    </div>
+    <div id="history-list"><div class="loading"><div class="spinner"></div>Cargando historial…</div></div>
+  </section>
+
+
+  <!-- NEWS -->
+  <section class="page" id="page-news">
+    <div class="page-header">
+      <div class="page-eyebrow">Fuente de notas</div>
+      <h1 class="page-title">Noticias de <em>IA</em></h1>
+      <p class="page-desc">Scrapea las últimas noticias sobre Claude, ChatGPT, Gemini y más. Claude las resume en notas estructuradas y las indexa automáticamente.</p>
+    </div>
+    <div class="card">
+      <div class="card-label">Configuración</div>
+      <div class="field">
+        <label>Modelo a seguir</label>
+        <select id="news-model">
+          <option value="">Todos los modelos</option>
+          <option value="claude">Claude / Anthropic</option>
+          <option value="chatgpt">ChatGPT / OpenAI</option>
+          <option value="gemini">Gemini / Google</option>
+          <option value="llama">Llama / Meta</option>
+          <option value="mistral">Mistral</option>
+          <option value="grok">Grok / xAI</option>
+          <option value="general">IA en general</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Máximo de artículos</label>
+        <select id="news-max">
+          <option value="3">3 artículos</option>
+          <option value="5" selected>5 artículos</option>
+          <option value="10">10 artículos</option>
+        </select>
+      </div>
+      <div class="toggle-row" style="margin-bottom:16px">
+        <div>
+          <div class="toggle-label">Resumir con Claude</div>
+          <div class="toggle-sub">Traduce y estructura cada artículo al español</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="news-summarize" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+      <button class="btn btn-primary" onclick="runScrape()" id="btn-scrape">◈ &nbsp;Obtener noticias</button>
+    </div>
+    <div id="news-result"></div>
+    <div class="card" style="margin-top:8px">
+      <div class="card-label">Programar automáticamente (Windows)</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.65">Ejecuta el scraper cada mañana automáticamente con el Programador de tareas de Windows.</p>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8">
+        # En PowerShell como Administrador:<br>
+        $action = New-ScheduledTaskAction -Execute "python" \`<br>
+        &nbsp;&nbsp;-Argument "C:\ruta\ai-notes-agent-v4\news_scraper.py"<br>
+        $trigger = New-ScheduledTaskTrigger -Daily -At "08:00"<br>
+        Register-ScheduledTask -TaskName "AINewsScraper" \`<br>
+        &nbsp;&nbsp;-Action $action -Trigger $trigger -RunLevel Highest
+      </div>
+    </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="page" id="page-profile">
+    <div class="page-header">
+      <div class="page-eyebrow">Configuración</div>
+      <h1 class="page-title">Perfil de <em>voz</em></h1>
+      <p class="page-desc">Define tu tono y estilo para que Claude genere posts que suenen como tú.</p>
+    </div>
+    <div class="card">
+      <div class="card-label">Identidad</div>
+      <div class="profile-grid">
+        <div class="field"><label>Nombre</label><input type="text" id="p-name" placeholder="Tu nombre"></div>
+        <div class="field"><label>Rol profesional</label><input type="text" id="p-role" placeholder="Ingeniero de IA"></div>
+        <div class="field"><label>Industria</label><input type="text" id="p-industry" placeholder="tecnología"></div>
+        <div class="field"><label>Audiencia</label><input type="text" id="p-audience" placeholder="profesionales de IA"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Estilo de escritura</div>
+      <div class="profile-grid">
+        <div class="field">
+          <label>Tono</label>
+          <select id="p-tone">
+            <option value="profesional">Profesional</option>
+            <option value="conversacional">Conversacional</option>
+            <option value="técnico">Técnico</option>
+            <option value="inspiracional">Inspiracional</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Nivel técnico</label>
+          <select id="p-tech">
+            <option value="básico">Básico</option>
+            <option value="medio" selected>Medio</option>
+            <option value="avanzado">Avanzado</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Longitud</label>
+          <select id="p-length">
+            <option value="corto">Corto (~150 palabras)</option>
+            <option value="medio" selected>Medio (~250 palabras)</option>
+            <option value="largo">Largo (~400 palabras)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>CTA</label>
+          <select id="p-cta">
+            <option value="pregunta">Pregunta al final</option>
+            <option value="invitación">Invitación a interactuar</option>
+            <option value="reflexión">Reflexión</option>
+            <option value="ninguno">Sin CTA</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Formato</div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Emojis</div><div class="toggle-sub">Usar emojis estratégicamente</div></div>
+        <label class="toggle"><input type="checkbox" id="p-emojis" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Hashtags</div><div class="toggle-sub">Añadir hashtags al final</div></div>
+        <label class="toggle"><input type="checkbox" id="p-hashtags" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-label">Primera persona</div><div class="toggle-sub">"Hoy aprendí…" vs forma impersonal</div></div>
+        <label class="toggle"><input type="checkbox" id="p-firstperson" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">Ejemplo de tu estilo (opcional)</div>
+      <div class="field" style="margin-bottom:0">
+        <label>Pega un post tuyo que te guste</label>
+        <textarea id="p-example" placeholder="Copia aquí un post que hayas publicado y que represente tu estilo…"></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveProfile()">◈ &nbsp;Guardar perfil</button>
+    <div id="profile-msg" style="margin-top:12px"></div>
+  </section>
+
+</main>
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+
+
+// ── Scraper ───────────────────────────────────────────────────────────────────
+async function runScrape() {
+  const model     = document.getElementById('news-model').value || null;
+  const max       = parseInt(document.getElementById('news-max').value);
+  const summarize = document.getElementById('news-summarize').checked;
+  const btn = document.getElementById('btn-scrape');
+  const out = document.getElementById('news-result');
+
+  btn.disabled = true;
+  btn.textContent = '⏳  Scrapeando…';
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Leyendo feeds RSS y resumiendo con Claude… (puede tardar ~30s)</div>';
+
+  try {
+    const r = await fetch(API + '/scrape', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({model, max, summarize})
+    });
+    const d = await r.json();
+    if (d.error) {
+      out.innerHTML = `<div class="alert alert-err">❌ ${d.error}</div>`;
+    } else if (d.articles_saved === 0) {
+      out.innerHTML = '<div class="alert alert-info">ℹ️  No hay artículos nuevos. Todo ya está indexado o no hubo coincidencias.</div>';
+    } else {
+      const files = (d.files||[]).map(f => `<div class="note-row"><div class="note-dot"></div><div class="note-title" style="font-family:var(--mono);font-size:11px">${f}</div></div>`).join('');
+      out.innerHTML = `
+        <div class="alert alert-ok">✅ ${d.articles_saved} artículos descargados y indexados</div>
+        <div class="card">
+          <div class="card-label">Notas creadas</div>
+          ${files}
+        </div>
+        <button class="btn btn-primary" style="margin-top:4px" onclick="nav('generate');document.getElementById('gen-q').value='últimas novedades en IA'">
+          ✦ &nbsp;Generar post sobre estas noticias
+        </button>`;
+      loadStatus();
+    }
+  } catch(e) {
+    out.innerHTML = `<div class="alert alert-err">❌ ${e.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '◈  Obtener noticias';
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  if (page === 'history') loadHistory();
+  if (page === 'profile') loadProfile();
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const r = await fetch(API + '/status');
+    const d = await r.json();
+
+    setDot('voyage', d.voyage_key);
+    setDot('claude', d.anthropic_key);
+    setDot('index',  d.index_exists);
+
+    document.getElementById('lbl-voyage').textContent = d.voyage_key ? 'Voyage AI ✓' : 'Voyage — sin key';
+    document.getElementById('lbl-claude').textContent = d.anthropic_key ? 'Claude ✓' : 'Claude — sin key';
+
+    if (d.index_stats) {
+      const s = d.index_stats;
+      document.getElementById('stat-notes').textContent  = s.total_notes  ?? '—';
+      document.getElementById('stat-chunks').textContent = s.total_chunks ?? '—';
+      document.getElementById('lbl-index').textContent   = `Índice: ${s.total_chunks ?? 0} chunks`;
+    } else {
+      document.getElementById('lbl-index').textContent = 'Índice vacío';
+    }
+  } catch(e) {
+    ['voyage','claude','index'].forEach(k => setDot(k, false));
+    document.getElementById('lbl-voyage').textContent = 'API no conectada';
+  }
+
+  try {
+    const r2 = await fetch(API + '/posts');
+    const posts = await r2.json();
+    document.getElementById('stat-posts').textContent = posts.length;
+  } catch(e) {}
+}
+
+function setDot(id, ok) {
+  const el = document.getElementById('dot-' + id);
+  el.className = 'dot ' + (ok ? 'ok' : 'warn');
+}
+
+// ── Index ─────────────────────────────────────────────────────────────────────
+async function runIndex() {
+  const dir = document.getElementById('index-dir').value.trim();
+  const btn = document.getElementById('btn-index');
+  const out = document.getElementById('index-result');
+
+  if (!dir) return;
+  btn.disabled = true;
+  btn.textContent = '⏳  Indexando…';
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Parseando, chunkando y vectorizando…</div>';
+
+  try {
+    const r = await fetch(API + '/index', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({directory: dir})
+    });
+    const d = await r.json();
+    if (d.error) {
+      out.innerHTML = `<div class="alert alert-err">❌ ${d.error}</div>`;
+    } else {
+      let rows = d.notes.map(n => `
+        <div class="note-row">
+          <div class="note-dot"></div>
+          <div class="note-title">${n.title || '(sin título)'}</div>
+          <div class="note-date">${n.date ? n.date.slice(0,10) : '—'}</div>
+          <div class="note-tags">${(n.tags||[]).slice(0,3).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>`).join('');
+      out.innerHTML = `
+        <div class="alert alert-ok">✅ ${d.notes_parsed} notas parseadas · ${d.chunks_saved} chunks guardados</div>
+        <div class="card">
+          <div class="card-label">Notas indexadas</div>
+          ${rows}
+        </div>`;
+      loadStatus();
+    }
+  } catch(e) {
+    out.innerHTML = `<div class="alert alert-err">❌ ${e.message} — ¿Está corriendo el servidor? (python api.py)</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '⊕  Indexar ahora';
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+async function runSearch() {
+  const q   = document.getElementById('search-q').value.trim();
+  const k   = parseInt(document.getElementById('search-k').value) || 5;
+  const out = document.getElementById('search-result');
+  if (!q) return;
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Buscando…</div>';
+
+  try {
+    const r = await fetch(API + '/search', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({query:q, top_k:k})
+    });
+    const d = await r.json();
+    if (d.error) { out.innerHTML = `<div class="alert alert-err">❌ ${d.error}</div>`; return; }
+
+    if (!d.found || !d.chunks.length) {
+      out.innerHTML = '<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-text">Sin resultados. Intenta con otro término o indexa más notas.</div></div>';
+      return;
+    }
+
+    const items = d.chunks.map(c => {
+      const sc = c.score;
+      const cls = sc >= 0.5 ? 'score-high' : sc >= 0.25 ? 'score-med' : 'score-low';
+      return `
+        <div class="result-item">
+          <div class="result-header">
+            <div class="result-title">${c.title || c.source_path || 'Sin título'}</div>
+            <span class="score-badge ${cls}">${sc.toFixed(3)}</span>
+          </div>
+          <div class="result-meta">
+            <span class="tag">${c.source_type}</span>
+            ${c.date ? `<span class="tag">${c.date.slice(0,10)}</span>` : ''}
+            ${(c.tags||[]).map(t=>`<span class="tag">#${t}</span>`).join('')}
+          </div>
+          <div class="result-preview">${c.content.replace(/\[Nota:[^\]]+\]\n\n/,'')}</div>
+        </div>`;
+    }).join('');
+
+    out.innerHTML = `
+      <div class="alert alert-info" style="margin-bottom:16px">
+        ${d.chunks.length} fragmentos encontrados · ${Math.round(d.elapsed_ms)}ms
+      </div>
+      ${items}`;
+  } catch(e) {
+    out.innerHTML = `<div class="alert alert-err">❌ ${e.message}</div>`;
+  }
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+async function runGenerate() {
+  const q  = document.getElementById('gen-q').value.trim();
+  const nv = parseInt(document.getElementById('gen-variants').value);
+  const tk = parseInt(document.getElementById('gen-topk').value);
+  const btn = document.getElementById('btn-gen');
+  const out = document.getElementById('gen-result');
+  if (!q) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳  Generando con Claude…';
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Recuperando contexto y generando posts…</div>';
+
+  try {
+    const r = await fetch(API + '/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({query:q, num_variants:nv, top_k:tk})
+    });
+    const d = await r.json();
+
+    if (d.error) { out.innerHTML = `<div class="alert alert-err">❌ ${d.error}</div>`; return; }
+
+    const simBadge = d.simulated
+      ? '<span style="background:rgba(250,204,21,.1);color:#facc15;font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--mono)">simulado</span>'
+      : '<span style="background:rgba(74,222,128,.1);color:#4ade80;font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--mono)">claude real</span>';
+
+    const header = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        ${simBadge}
+        <span style="font-size:12px;color:var(--hint);font-family:var(--mono)">${Math.round(d.elapsed_ms)}ms</span>
+        <span style="font-size:12px;color:var(--hint)">Fuentes: ${(d.sources||[]).join(', ')}</span>
+      </div>`;
+
+    const cards = d.posts.map(p => `
+      <div class="post-card">
+        <div class="post-header">
+          <div>
+            <div class="post-variant">Variante ${p.variant}</div>
+            <div class="post-style">${p.style_label}</div>
+          </div>
+          <div class="post-wc">${p.word_count} palabras</div>
+        </div>
+        <div class="post-body">
+          <div class="post-text" id="post-${p.variant}">${escHtml(p.content)}</div>
+        </div>
+        <div class="post-actions">
+          <button class="btn btn-sm" onclick="copyPost(${p.variant}, '${escAttr(p.content)}')">⎘ &nbsp;Copiar</button>
+          <span class="copied-flash" id="flash-${p.variant}">¡Copiado!</span>
+        </div>
+      </div>`).join('');
+
+    out.innerHTML = header + cards;
+    if (d.saved_file) {
+      out.innerHTML += `<div class="alert alert-ok" style="margin-top:4px">💾 Guardado en ${d.saved_file}</div>`;
+    }
+  } catch(e) {
+    out.innerHTML = `<div class="alert alert-err">❌ ${e.message}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '✦  Generar posts';
+}
+
+function copyPost(variant, content) {
+  navigator.clipboard.writeText(content).then(() => {
+    const f = document.getElementById('flash-' + variant);
+    f.classList.add('show');
+    setTimeout(() => f.classList.remove('show'), 2000);
+  });
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const out = document.getElementById('history-list');
+  out.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando…</div>';
+  try {
+    const r = await fetch(API + '/posts');
+    const files = await r.json();
+    if (!files.length) {
+      out.innerHTML = '<div class="empty-state"><div class="empty-icon">◷</div><div class="empty-text">Aún no hay posts generados.<br>Ve a Generar post para crear el primero.</div></div>';
+      return;
+    }
+    out.innerHTML = files.map(f => `
+      <div class="card" style="cursor:pointer" onclick="loadPostFile('${f.filename}')">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+          <div>
+            <div style="font-weight:500;font-size:13px;margin-bottom:4px">${f.query}</div>
+            <div style="font-size:11px;color:var(--hint);font-family:var(--mono)">${f.generated_at?.slice(0,16).replace('T',' ')} · ${f.num_posts} variantes · ${f.model}</div>
+          </div>
+          <span style="color:var(--hint);font-size:18px">›</span>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    out.innerHTML = `<div class="alert alert-err">❌ ${e.message}</div>`;
+  }
+}
+
+async function loadPostFile(filename) {
+  try {
+    const r = await fetch(`${API}/posts/${filename}`);
+    const d = await r.json();
+    nav('generate');
+    document.getElementById('gen-q').value = d.query || '';
+    const cards = (d.posts || []).map(p => `
+      <div class="post-card">
+        <div class="post-header">
+          <div><div class="post-variant">Variante ${p.variant}</div><div class="post-style">${p.style||p.style_label||''}</div></div>
+          <div class="post-wc">${p.word_count} palabras</div>
+        </div>
+        <div class="post-body"><div class="post-text">${escHtml(p.content)}</div></div>
+        <div class="post-actions">
+          <button class="btn btn-sm" onclick="navigator.clipboard.writeText(\`${escAttr(p.content)}\`)">⎘ &nbsp;Copiar</button>
+        </div>
+      </div>`).join('');
+    document.getElementById('gen-result').innerHTML =
+      `<div class="alert alert-info">📂 Cargado desde historial · ${filename}</div>` + cards;
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const r = await fetch(API + '/profile');
+    const d = await r.json();
+    document.getElementById('p-name').value       = d.name || '';
+    document.getElementById('p-role').value       = d.role || '';
+    document.getElementById('p-industry').value   = d.industry || '';
+    document.getElementById('p-audience').value   = d.audience || '';
+    document.getElementById('p-tone').value       = d.tone || 'profesional';
+    document.getElementById('p-tech').value       = d.technicality || 'medio';
+    document.getElementById('p-length').value     = d.post_length || 'medio';
+    document.getElementById('p-cta').value        = d.cta_style || 'pregunta';
+    document.getElementById('p-emojis').checked      = d.use_emojis !== false;
+    document.getElementById('p-hashtags').checked    = d.use_hashtags !== false;
+    document.getElementById('p-firstperson').checked = d.first_person !== false;
+    document.getElementById('p-example').value = (d.example_posts || [])[0] || '';
+  } catch(e) {}
+}
+
+async function saveProfile() {
+  const payload = {
+    name:         document.getElementById('p-name').value,
+    role:         document.getElementById('p-role').value,
+    industry:     document.getElementById('p-industry').value,
+    audience:     document.getElementById('p-audience').value,
+    tone:         document.getElementById('p-tone').value,
+    technicality: document.getElementById('p-tech').value,
+    post_length:  document.getElementById('p-length').value,
+    cta_style:    document.getElementById('p-cta').value,
+    use_emojis:   document.getElementById('p-emojis').checked,
+    use_hashtags: document.getElementById('p-hashtags').checked,
+    first_person: document.getElementById('p-firstperson').checked,
+    hashtag_count: 5,
+    language: 'es',
+    storytelling: true,
+    example_posts: document.getElementById('p-example').value.trim()
+      ? [document.getElementById('p-example').value.trim()] : [],
+    avoid_topics: [],
+    raw_frontmatter: {},
+  };
+  try {
+    const r = await fetch(API + '/profile', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    const msg = document.getElementById('profile-msg');
+    if (d.success) {
+      msg.innerHTML = '<div class="alert alert-ok">✅ Perfil guardado correctamente</div>';
+    } else {
+      msg.innerHTML = `<div class="alert alert-err">❌ ${d.error}</div>`;
+    }
+    setTimeout(() => msg.innerHTML = '', 3000);
+  } catch(e) {
+    document.getElementById('profile-msg').innerHTML = `<div class="alert alert-err">❌ ${e.message}</div>`;
+  }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return (s||'').replace(/\\/g,'\\\\').replace(/`/g,'\\`').replace(/\$/g,'\\$');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStatus();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>
